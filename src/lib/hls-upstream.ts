@@ -117,7 +117,7 @@ async function viaLearnxpw(path: string): Promise<UpstreamResult | null> {
       status: 200,
       body,
       contentType: contentTypeFor(path, ct || "application/octet-stream"),
-      provider: "learnxpw",
+      provider: "PW-MARCO",
     };
   } catch {
     return null;
@@ -191,7 +191,7 @@ async function viaPwDirect(path: string): Promise<UpstreamResult | null> {
         status: 200,
         body: await res.arrayBuffer(),
         contentType: "application/octet-stream",
-        provider: "pw-direct",
+        provider: "PW Direct",
       };
     } catch {
       return null;
@@ -217,7 +217,7 @@ async function viaPwDirect(path: string): Promise<UpstreamResult | null> {
         path,
         res.headers.get("content-type") ?? "application/octet-stream",
       ),
-      provider: "pw-direct",
+      provider: "PW Direct",
     };
   } catch {
     return null;
