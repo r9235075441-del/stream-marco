@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { getPwToken } from "@/lib/hls-upstream";
 
 const UPSTREAM_BASE = "https://www.learnxpw.site";
+const PW_API = "https://api.penpencil.co";
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 const querySchema = z.object({
   batchId: z.string().min(1).max(128),
@@ -13,6 +17,85 @@ const querySchema = z.object({
 function extractVideoKey(url: string): string | null {
   const match = url.match(/cloudfront\.net\/([0-9a-fA-F-]{8,})\//);
   return match?.[1] ?? null;
+}
+
+/** Provider 1: learnxpw Schedule API. */
+async function resolveViaLearnxpw(
+  batchId: string,
+  subjectId: string,
+  childId: string,
+) {
+  try {
+    const res = await fetch(
+      `${UPSTREAM_BASE}/api/Schedule?BatchId=${encodeURIComponent(batchId)}&SubjectId=${encodeURIComponent(subjectId)}&ContentId=${encodeURIComponent(childId)}`,
+      {
+        headers: {
+          "User-Agent": BROWSER_UA,
+          Accept: "application/json",
+          Referer: `${UPSTREAM_BASE}/`,
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const json: any = await res.json();
+    if (!json?.success || !json?.data) return null;
+    const directUrl: string | undefined = json.data.videoUrl || json.data.url;
+    const videoKey = directUrl ? extractVideoKey(directUrl) : null;
+    if (!videoKey) return null;
+    return {
+      videoKey,
+      directUrl: directUrl ?? null,
+      title: json.data.title ?? json.data.slug ?? null,
+      provider: "learnxpw",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Provider 2: PW schedule-details with a pooled access token. */
+async function resolveViaPw(
+  batchId: string,
+  subjectId: string,
+  childId: string,
+) {
+  const token = await getPwToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(
+      `${PW_API}/v1/batches/${encodeURIComponent(batchId)}/subject/${encodeURIComponent(subjectId)}/schedule/${encodeURIComponent(childId)}/schedule-details`,
+      {
+        headers: {
+          authorization: `Bearer ${token}`,
+          "client-type": "WEB",
+          "client-version": "6.0.1",
+          randomId: "0",
+          Origin: "https://www.pw.live",
+          Referer: "https://www.pw.live/",
+          "User-Agent": BROWSER_UA,
+          Accept: "application/json",
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const json: any = await res.json();
+    const d = json?.data;
+    if (!d) return null;
+    const directUrl: string | undefined =
+      d.videoDetails?.videoUrl ?? d.videoUrl ?? d.url;
+    const videoKey = directUrl
+      ? extractVideoKey(directUrl)
+      : (d.videoDetails?.videoKey ?? null);
+    if (!videoKey) return null;
+    return {
+      videoKey,
+      directUrl: directUrl ?? null,
+      title: d.topic ?? d.name ?? null,
+      provider: "pw-direct",
+    };
+  } catch {
+    return null;
+  }
 }
 
 export const Route = createFileRoute("/api/stream-url")({
@@ -38,66 +121,29 @@ export const Route = createFileRoute("/api/stream-url")({
 
         const { batchId, subjectId, childId } = parsed.data;
 
-        let schedule: any;
-        try {
-          const upstream = await fetch(
-            `${UPSTREAM_BASE}/api/Schedule?BatchId=${encodeURIComponent(batchId)}&SubjectId=${encodeURIComponent(subjectId)}&ContentId=${encodeURIComponent(childId)}`,
-            {
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-                Accept: "application/json",
-                Referer: `${UPSTREAM_BASE}/`,
-              },
-            },
-          );
-          if (!upstream.ok) {
-            return Response.json(
-              {
-                success: false,
-                message: `Upstream Schedule API failed with status ${upstream.status}`,
-              },
-              { status: 502 },
-            );
-          }
-          schedule = await upstream.json();
-        } catch {
-          return Response.json(
-            { success: false, message: "Failed to reach upstream server" },
-            { status: 502 },
-          );
-        }
+        const resolved =
+          (await resolveViaLearnxpw(batchId, subjectId, childId)) ??
+          (await resolveViaPw(batchId, subjectId, childId));
 
-        if (!schedule?.success || !schedule?.data) {
+        if (!resolved) {
           return Response.json(
             { success: false, message: "Video not found for the given IDs" },
             { status: 404 },
           );
         }
 
-        const directUrl: string | undefined =
-          schedule.data.videoUrl || schedule.data.url;
-        const videoKey = directUrl ? extractVideoKey(directUrl) : null;
-
-        if (!videoKey) {
-          return Response.json(
-            {
-              success: false,
-              message: "No video URL found in schedule data for this content",
-            },
-            { status: 404 },
-          );
-        }
-
-        const streamUrl = `${UPSTREAM_BASE}/api/play/m3u8?path=${encodeURIComponent(`/${videoKey}/master.m3u8`)}`;
+        const origin = url.origin;
+        const streamUrl = `${origin}/api/public/hls?p=${encodeURIComponent(`/${resolved.videoKey}/master.m3u8`)}`;
 
         return Response.json({
           success: true,
-          videoKey,
+          videoKey: resolved.videoKey,
+          // Self-hosted playlist: player never touches learnxpw directly.
           streamUrl,
-          directUrl: directUrl ?? null,
-          title: schedule.data.title ?? schedule.data.slug ?? null,
-          note: "Play streamUrl with header Referer: https://www.learnxpw.site (HLS player / VLC).",
+          resolvedVia: resolved.provider,
+          directUrl: resolved.directUrl,
+          title: resolved.title,
+          note: "streamUrl is served from this app's own domain (no Referer header needed). Playlists, AES keys and .ts segments are all proxied here.",
         });
       },
     },
