@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiStreamUrlRouteImport } from './routes/api/stream-url'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStreamUrlRoute = ApiStreamUrlRouteImport.update({
+  id: '/api/stream-url',
+  path: '/api/stream-url',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/stream-url': typeof ApiStreamUrlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/stream-url': typeof ApiStreamUrlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/stream-url': typeof ApiStreamUrlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/stream-url'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/stream-url'
+  id: '__root__' | '/' | '/api/stream-url'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiStreamUrlRoute: typeof ApiStreamUrlRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/stream-url': {
+      id: '/api/stream-url'
+      path: '/api/stream-url'
+      fullPath: '/api/stream-url'
+      preLoaderRoute: typeof ApiStreamUrlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiStreamUrlRoute: ApiStreamUrlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
