@@ -12,7 +12,7 @@ const querySchema = z.object({
 /** Extract the videoKey (first path segment) from a cloudfront mpd/m3u8 URL. */
 function extractVideoKey(url: string): string | null {
   const match = url.match(/cloudfront\.net\/([0-9a-fA-F-]{8,})\//);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 export const Route = createFileRoute("/api/stream-url")({
