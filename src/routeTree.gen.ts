@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiStreamUrlRouteImport } from './routes/api/stream-url'
+import { Route as ApiPublicHlsRouteImport } from './routes/api/public/hls'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const ApiStreamUrlRoute = ApiStreamUrlRouteImport.update({
   path: '/api/stream-url',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHlsRoute = ApiPublicHlsRouteImport.update({
+  id: '/api/public/hls',
+  path: '/api/public/hls',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/stream-url': typeof ApiStreamUrlRoute
+  '/api/public/hls': typeof ApiPublicHlsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/stream-url': typeof ApiStreamUrlRoute
+  '/api/public/hls': typeof ApiPublicHlsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/stream-url': typeof ApiStreamUrlRoute
+  '/api/public/hls': typeof ApiPublicHlsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/stream-url'
+  fullPaths: '/' | '/api/stream-url' | '/api/public/hls'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/stream-url'
-  id: '__root__' | '/' | '/api/stream-url'
+  to: '/' | '/api/stream-url' | '/api/public/hls'
+  id: '__root__' | '/' | '/api/stream-url' | '/api/public/hls'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiStreamUrlRoute: typeof ApiStreamUrlRoute
+  ApiPublicHlsRoute: typeof ApiPublicHlsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStreamUrlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hls': {
+      id: '/api/public/hls'
+      path: '/api/public/hls'
+      fullPath: '/api/public/hls'
+      preLoaderRoute: typeof ApiPublicHlsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiStreamUrlRoute: ApiStreamUrlRoute,
+  ApiPublicHlsRoute: ApiPublicHlsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
