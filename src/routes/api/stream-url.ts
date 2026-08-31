@@ -46,7 +46,7 @@ async function resolveViaLearnxpw(
       videoKey,
       directUrl: directUrl ?? null,
       title: json.data.title ?? json.data.slug ?? null,
-      provider: "learnxpw",
+      provider: "PW-MARCO",
     };
   } catch {
     return null;
@@ -91,7 +91,7 @@ async function resolveViaPw(
       videoKey,
       directUrl: directUrl ?? null,
       title: d.topic ?? d.name ?? null,
-      provider: "pw-direct",
+      provider: "PW Direct",
     };
   } catch {
     return null;
